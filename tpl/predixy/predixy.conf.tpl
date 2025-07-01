@@ -3,6 +3,7 @@ Name PredixyMain
 Bind 0.0.0.0:${PREDIXY_PORT}
 WorkerThreads 1
 ClientTimeout 300
+# MaxClients 10000
 
 ################################### LOG ########################################
 Log /data/logs/redis-logs/predixy.${PREDIXY_PORT}.log

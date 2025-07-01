@@ -12,10 +12,6 @@ SentinelServerPool {
     ServerFailureLimit 10
     ServerRetryTimeout 1
     KeepAlive 60
-    Sentinels {
-        + 10.144.14.165:26000
-        + 10.160.62.17:26000
-        + 10.160.61.171:26000
-    }
+${PREDIXY_SENTINELS_HOST}
 ${PREDIXY_SENTINELS}
 }

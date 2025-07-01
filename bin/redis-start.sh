@@ -45,11 +45,11 @@ LOADMODULE_SECTION=""
 help() {
     echo "Usage:"
     echo "$myname -p <PORTS> [-t <TYPE>] [-m <1G>] -a <REDIS_PASS>"
-    echo "  安装master示例(不加入哨兵): sh install-redis.sh -p 4001,4011 -t master -m 1G -a 87654321"
-    echo "  安装master示例: sh install-redis.sh -p 4001,4011 -t master -m 1G -a 87654321 -s config-master-0,config-master-1 -l 127.0.0.1:26000,127.0.0.2:26000 -r 127.0.0.1"
-    echo "  安装master示例: sh install-redis.sh -p 4001,4011 -t master -m 1G -a 87654321 -s config-master-0,config-master-1 -l 127.0.0.1:26000,127.0.0.2:26000 "
-    echo "  安装slave示例: sh install-redis.sh -p 4102 -t slave -m 500M -a 87654321 -f 127.0.0.1:4101"
-    echo "  安装proxy示例: sh install-redis.sh -p 14001,14011 -t proxy -a 87654321 -s config-master-0,config-master-1 "
+    echo "  安装master示例(不加入哨兵): sh $myname -p 4001,4011 -t master -m 1G -a 87654321"
+    echo "  安装master示例: sh $myname -p 4001,4011 -t master -m 1G -a 87654321 -s config-master-0,config-master-1 -l 127.0.0.1:26000,127.0.0.2:26000 -r 127.0.0.1"
+    echo "  安装master示例: sh $myname -p 4001,4011 -t master -m 1G -a 87654321 -s config-master-0,config-master-1 -l 127.0.0.1:26000,127.0.0.2:26000 "
+    echo "  安装slave示例: sh $myname -p 4102 -t slave -m 500M -a 87654321 -f 127.0.0.1:4101"
+    echo "  安装proxy示例: sh $myname -p 14001,14011 -t proxy -a 87654321 -s config-master-0,config-master-1 "
     echo "  -p 7001,7002"
     echo "  -t salve -> 可取值: master, slave, proxy; 默认取值: master"
     echo "  -m 1G -> 例如: 1G, 200M; 默认 1G (type=master 或 slave 时有效)"
@@ -151,6 +151,7 @@ fi
 port_arr=(${PORTS//,/ })
 sentinel_arr=(${SENTINEL_NAMES//,/ })
 master_arr=(${MASTER_ADRRS//,/ })
+sentinel_cluster_arr=(${SENTINEL_LISTS//,/ })
 #for port in ${port_arr[@]}; do
 for i in ${!port_arr[@]}; do
     #echo "i: $i"
@@ -216,11 +217,13 @@ for i in ${!port_arr[@]}; do
             if [ ! -z "${SENTINEL_NAMES}" ]; then
                 stn_name=${sentinel_arr[$i]}
             fi
-            sentinel_cluster_arr=(${SENTINEL_LISTS//,/ })
+            
             for stnc in ${sentinel_cluster_arr[@]}; do
                 stnc_ins_arr=(${stnc//:/ })
                 s_host=${stnc_ins_arr[0]}
                 s_port=${stnc_ins_arr[1]}
+                # 先删除再添加
+                $CLIEXEC -h ${s_host} -p ${s_port} sentinel remove $stn_name
                 $CLIEXEC -h ${s_host} -p ${s_port} sentinel monitor $stn_name $MASTER_IP $port 2
                 $CLIEXEC -h ${s_host} -p ${s_port} sentinel set $stn_name auth-pass $REDIS_PASS
             done
@@ -229,6 +232,17 @@ for i in ${!port_arr[@]}; do
     elif [ $TYPE = "proxy" ]; then
         export PREDIXY_PORT=$port
         export REDIS_PASS
+
+        PREDIXY_SENTINELS_HOST=""
+        PREDIXY_SENTINELS_HOST="${PREDIXY_SENTINELS_HOST}    Sentinels {
+"
+        for stnc in ${sentinel_cluster_arr[@]}; do
+            PREDIXY_SENTINELS_HOST="${PREDIXY_SENTINELS_HOST}        + ${stnc}
+"
+        done
+            PREDIXY_SENTINELS_HOST="${PREDIXY_SENTINELS_HOST}    }
+"
+        export PREDIXY_SENTINELS_HOST
 
         PREDIXY_SENTINELS=""
         ## 代理对应的哨兵列表
